@@ -14,36 +14,56 @@ module Houston
   end
 
 
+
+  # New Extensions
+
+  @credentials_services = {}
+
+  def self.accept_credentials_for(service, &test_connection_proc)
+    @credentials_services[service] = test_connection_proc
+  end
+
+  def self.user_credentials_support_services
+    @credentials_services.keys
+  end
+
+  def self.test_connection_to(credentials)
+    login = credentials.login
+    password = credentials.password.decrypt(Houston::Credentials.config.passphrase)
+    errors = credentials.errors
+    @credentials_services[credentials.service].call(login, password, errors)
+  end
+
+
+
   # Extension Points
   # ===========================================================================
   #
   # Read more about extending Houston at:
   # https://github.com/houston/houston-core/wiki/Modules
 
+  add_user_option "credentials.list" do
+    name "Credentials"
+    html do |f|
+      html = <<-HTML
+        <p>
+          Houston has remembered your credentials for:
+        </p>
 
-  # Register events that will be raised by this module
-  #
-  #    register_events {{
-  #      "credentials:create" => params("credentials").desc("Credentials was created"),
-  #      "credentials:update" => params("credentials").desc("Credentials was updated")
-  #    }}
-
-
-  # Add a link to Houston's global navigation
-  #
-  #    add_navigation_renderer :credentials do
-  #      name "Credentials"
-  #      path { Houston::Credentials::Engine.routes.url_helpers.credentials_path }
-  #      ability { |ability| ability.can? :read, Project }
-  #    end
-
-
-  # Add a link to feature that can be turned on for projects
-  #
-  #    add_project_feature :credentials do
-  #      name "Credentials"
-  #      path { |project| Houston::Credentials::Engine.routes.url_helpers.project_credentials_path(project) }
-  #      ability { |ability, project| ability.can? :read, project }
-  #    end
+        <ul class="user-credentials">
+      HTML
+      @user.credentials.each do |credentials|
+        html << <<-HTML
+          <li id="user_credentials_#{credentials.id}">
+            <span class="user-credentials-service">#{credentials.service}</span>
+            <span class="user-credentials-delete">
+              <a class="btn btn-mini btn-danger delete-user-credentials" href="/credentials/#{credentials.id}" data-method="delete" data-confirm="Should Houston forget your credentials for #{credentials.service}?">Delete</a>
+            </span>
+          </li>
+        HTML
+      end
+      html << "</ul>"
+    end
+  end
 
 end
